@@ -1,3 +1,4 @@
+
 #include <lib/debug.h>
 #include <lib/types.h>
 #include "import.h"
@@ -7,6 +8,9 @@
 #define VM_USERHI    0xF0000000
 #define VM_USERLO_PI (VM_USERLO / PAGESIZE)
 #define VM_USERHI_PI (VM_USERHI / PAGESIZE)
+
+//VM_USERLO = starting memory address VM_USERLO_PI = starting page index
+//VM_USERHI = ending memory address VM_USERHI_PI = ending page indexl
 
 /**
  * The initialization function for the allocation table AT.
@@ -21,46 +25,74 @@
 void pmem_init(unsigned int mbi_addr)
 {
     unsigned int nps;
+    
+    unsigned int r;
+    unsigned int max_end = 0;
 
-    // TODO [Lab 1]: Define your local variables here.
-
-    // Calls the lower layer initialization primitive.
-    // The parameter mbi_addr should not be used in the further code.
     devinit(mbi_addr);
     mem_spinlock_init();
 
-    /**
-     * Calculate the total number of physical pages provided by the hardware and
-     * store it into the local variable nps.
-     * Hint: Think of it as the highest address in the ranges of the memory map table,
-     *       divided by the page size.
-     */
-    // TODO [Lab 1]
 
-    set_nps(nps);  // Setting the value computed above to NUM_PAGES.
+    //calculating total number of physical pages
+    
+    // Find the highest ending address in the memory map.
+    for (r = 0; r < get_size(); r++)
+    {
+        unsigned int end = get_mms(r) + get_mml(r);
 
-    /**
-     * Initialization of the physical allocation table (AT).
-     *
-     * In CertiKOS, all addresses < VM_USERLO or >= VM_USERHI are reserved by the kernel.
-     * That corresponds to the physical pages from 0 to VM_USERLO_PI - 1,
-     * and from VM_USERHI_PI to NUM_PAGES - 1.
-     * The rest of the pages that correspond to addresses [VM_USERLO, VM_USERHI)
-     * can be used freely ONLY IF the entire page falls into one of the ranges in
-     * the memory map table with the permission marked as usable.
-     *
-     * Hint:
-     * 1. You have to initialize AT for all the page indices from 0 to NPS - 1.
-     * 2. For the pages that are reserved by the kernel, simply set its permission to 1.
-     *    Recall that the setter at_set_perm also marks the page as unallocated.
-     *    Thus, you don't have to call another function to set the allocation flag.
-     * 3. For the rest of the pages, explore the memory map table to set its permission
-     *    accordingly. The permission should be set to 2 only if there is a range
-     *    containing the entire page that is marked as available in the memory map table.
-     *    Otherwise, it should be set to 0. Note that the ranges in the memory map are
-     *    not aligned by pages, so it may be possible that for some pages, only some of
-     *    the addresses are in a usable range. Currently, we do not utilize partial pages,
-     *    so in that case, you should consider those pages as unavailable.
-     */
-    // TODO [Lab 1]
+        if (end > max_end)
+        {
+            max_end = end;
+        }
+    }
+
+    // Convert the highest address into a number of pages.
+    nps = max_end / PAGESIZE;
+
+    set_nps(nps);
+
+    //AT (physical allocation table) initialization
+
+    unsigned int i;
+
+    for (i = 0; i < nps; i++)
+    {
+        // Pages reserved for the kernel.
+        if (i < VM_USERLO_PI || i >= VM_USERHI_PI)
+        {
+            at_set_perm(i, 1);
+        }
+        else //pages putside user region are reserved for the kernel
+        {
+            unsigned int found = 0;
+
+            unsigned int page_start = i * PAGESIZE;
+            unsigned int page_end = (i + 1) * PAGESIZE;
+
+            // checks whether page fits inside a usable bios range
+            // if it does, mark it as normal in the allocation table AT.
+            for (r = 0; r < get_size(); r++)
+            {
+                unsigned int range_start = get_mms(r);
+                unsigned int range_end = range_start + get_mml(r);
+
+                // The entire page must be inside a usable range.
+                if (is_usable(r) == 1 && range_start <= page_start && page_end <= range_end)
+                {
+                    found = 1;
+                    break;
+                }
+            }
+
+            if (found == 1)
+            {
+                at_set_perm(i, 2); //if entire page is uasable mark its permission as 2. 
+            }
+            else
+            {
+                at_set_perm(i, 0);
+            }
+        }
+    }
 }
+

@@ -56,42 +56,41 @@ void set_nps(unsigned int nps)
     NUM_PAGES = nps;
 }
 
-/**
- * The getter function for the page permission.
- * If the page with the given index has the normal permission,
- * then returns 1, otherwise returns 0.
- */
+//if page with given index is normal return 1 else return 0
 unsigned int at_is_norm(unsigned int page_index)
 {
-    // TODO [Lab 1]
-    return 0;
+    if(AT[page_index].perm>1){
+        return 1;
+    }
+    else{
+        return 0;
+    }
 }
 
-/**
- * The setter function for the physical page permission.
- * Sets the permission of the page with given index.
- * It also marks the page as unallocated.
- */
+//sets permission of a given index and marks it as unallocated
 void at_set_perm(unsigned int page_index, unsigned int perm)
 {
-    // TODO [Lab 1]
+    AT[page_index].perm = perm;
+    AT[page_index].allocated = 0;
 }
 
-/**
- * The getter function for the physical page allocation flag.
- * Returns 0 if the page is not allocated, otherwise returns 1.
- */
+// getter for a AT flag that indicates whether a page is allocated or not
 unsigned int at_is_allocated(unsigned int page_index)
 {
     // TODO [Lab 1]
-    return 0;
+
+    if(AT[page_index].allocated == 0){
+        return 0;
+    }
+    else if(AT[page_index].allocated > 0)
+    {
+        return 1;
+    }
 }
 
-/**
- * The setter function for the physical page allocation flag.
- * Set the flag of the page with given index to the given value.
- */
+//sets the flag of a given index in the AT to indicate whether a page is allocated or not
 void at_set_allocated(unsigned int page_index, unsigned int allocated)
 {
     // TODO [Lab 1]
+    AT[page_index].allocated = allocated;
 }

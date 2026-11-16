@@ -8,48 +8,68 @@
 #define VM_USERLO_PI (VM_USERLO / PAGESIZE)
 #define VM_USERHI_PI (VM_USERHI / PAGESIZE)
 
-/**
- * Allocate a physical page.
- *
- * 1. First, implement a naive page allocator that scans the allocation table (AT)
- *    using the functions defined in import.h to find the first unallocated page
- *    with normal permissions.
- *    (Q: Do you have to scan the allocation table from index 0? Recall how you have
- *    initialized the table in pmem_init.)
- *    Then mark the page as allocated in the allocation table and return the page
- *    index of the page found. In the case when there is no available page found,
- *    return 0.
- * 2. Optimize the code using memoization so that you do not have to
- *    scan the allocation table from scratch every time.
- *
- * Note: palloc may run on several CPUs at the same time (lab 6), so the
- * allocation table is protected by mem_lock() / mem_unlock(). Keep your code
- * between the two calls and do not return in between.
- */
+//VM_USERLO = starting memory address VM_USERLO_PI = starting page index
+//VM_USERHI = ending memory address VM_USERHI_PI = ending page index
+
+//memoization starts from the starting memory index(VM_USERLO_PI)
 unsigned int palloc()
 {
-    unsigned int palloc_free_index = 0;
+    unsigned int palloc_free_index = 0; //for storing allocated page index
+
+    // Remember where the previous search stopped.
+    static unsigned int last_index = VM_USERLO_PI;
+
+    unsigned int start_index;
+    unsigned int i;
 
     mem_lock();
 
-    // TODO [Lab 1]
+    start_index = last_index;
+    i = start_index;
+
+    do
+    {
+        // Check whether this page is normal and unallocated.
+        if (at_is_norm(i) == 1 &&
+            at_is_allocated(i) == 0)
+        {
+            // Mark the page as allocated if it is.
+            at_set_allocated(i, 1);
+
+            palloc_free_index = i;
+
+            // Start the next search from the following next page.
+            last_index = i + 1;
+
+            if (last_index >= VM_USERHI_PI){ //if we didnt reach the end 
+                last_index = VM_USERLO_PI;
+            }
+
+            break;
+        }
+
+        // Move to the next page.
+        i++;
+
+        // Wrap around to the beginning of the user region.
+        if (i >= VM_USERHI_PI)
+        {
+            i = VM_USERLO_PI;
+        }
+
+    } while (i != start_index);
 
     mem_unlock();
 
     return palloc_free_index;
 }
 
-/**
- * Free a physical page.
- *
- * This function marks the page with given index as unallocated
- * in the allocation table.
- *
- * Hint: Simple.
- */
+//free a page and mark it as unallocated in the allocation table AT 
 void pfree(unsigned int pfree_index)
 {
     mem_lock();
-    // TODO [Lab 1]
+
+    at_set_allocated(pfree_index, 0);
+
     mem_unlock();
 }
